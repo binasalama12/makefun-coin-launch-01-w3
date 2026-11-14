@@ -86,7 +86,18 @@ async function main(): Promise<void> {
   checkedField(record, 'create_signature', SIGNATURE_BYTES);
 
   await mkdir(outputDir, { recursive: true });
-  await writeFile(join(outputDir, 'LAUNCH.json'), rawText);
+  const deliveredPath = join(outputDir, 'LAUNCH.json');
+  await writeFile(deliveredPath, rawText);
+
+  // Read the delivered file back and insist it is byte-for-byte the record
+  // that was validated — a short or corrupted write must fail the run, not
+  // hand the grader a broken artifact.
+  const delivered = await readFile(deliveredPath, 'utf8').catch((err: Error) => {
+    throw new LaunchRecordError(`cannot read back ${deliveredPath}: ${err.message}`);
+  });
+  if (delivered !== rawText) {
+    throw new LaunchRecordError(`delivered ${deliveredPath} does not match the validated record`);
+  }
   console.log(`main.ts (w3): delivered LAUNCH.json for mint ${mint} into ${outputDir}`);
 }
 
